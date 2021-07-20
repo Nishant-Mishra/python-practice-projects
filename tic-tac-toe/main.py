@@ -97,6 +97,14 @@ class TicTacToe:
     def size(self):
         return self._size
 
+    @property
+    def nrows(self):
+        return self._rows
+
+    @property
+    def ncols(self):
+        return self._cols
+
     def __str__(self):
         return self.show_board()
 
@@ -110,6 +118,11 @@ class GamePlay:
             Player.COMPUTER, Player.USER
         ])
 
+    @property
+    def available_choices(self):
+        available = [pos + 1 for pos, elem in enumerate(self._ttt[:, :]) if not elem]
+        return available
+
     def welcome(self):
         print(f"Welcome to Tic Tac Toe")
         self._symbol[Player.USER] = input(f"Choose your playing character (usually 'X' or 'O'): ")
@@ -119,28 +132,29 @@ class GamePlay:
               f"{Player.COMPUTER.value} will use '{self._symbol[Player.COMPUTER]}'")
         print()
 
-    def _get_user_pos(self):
+    def _get_user_choice(self):
         user_pos = None
         while True:
             user_pos = int(input(f"Enter the position of your input (1-{self._ttt.size}): "))
             if user_pos > self._ttt.size or user_pos < 1:
                 print("Invalid input, try again !!")
+            elif user_pos not in self.available_choices:
+                print(f"This position is taken, try another...")
             else:
                 break
         return user_pos
 
     def _computer_choice(self):
-        available_choices = [pos + 1 for pos, elem in enumerate(self._ttt[:, :]) if not elem]
-        return random.choice(available_choices)
+        return random.choice(self.available_choices)
 
     def run_game(self):
         self.welcome()
-        input("Press Enter to begin the match...")
         print(f"{self._current_player.value} will start the match !!")
+        input("Press Enter to begin the match...")
         print(self._ttt)
         while True:
             if self._current_player == Player.USER:
-                next_pos = self._get_user_pos()
+                next_pos = self._get_user_choice()
             else:
                 next_pos = self._computer_choice()
             print(f"{self._current_player.value} chose position '{next_pos}'")
@@ -148,6 +162,51 @@ class GamePlay:
             print(self._ttt)
             self._current_player = Player.USER if self._current_player == Player.COMPUTER else Player.COMPUTER
 
+            winner = self._get_winner()
+            if winner == Player.USER:
+                print(f" B-(   You really think you can beat me... Have guts to try again ???")
+                break
+            elif winner == Player.COMPUTER:
+                print(f" 8-D   I am God, you puny human !!!")
+                break
+            else:
+                if not self.available_choices:
+                    print(" B-|   Looks like you hit a luck, you are safe from my wrath today !!!")
+                    break
+
+    def _get_winner(self):
+        winner = None
+        # Check rows
+        for i in range(self._ttt.nrows):
+            row = self._ttt[i, :]
+            if row[0] and len(set(row)) == 1:
+                winner = row[0]
+                break
+
+        if not winner:
+            # Check cols
+            for j in range(self._ttt.ncols):
+                col = self._ttt[:, j]
+                if col[0] and len(set(col)) == 1:
+                    winner = col[0]
+                    break
+
+        if not winner:
+            # Check left_diagonal
+            ld = self._ttt.left_diagonal
+            if ld[0] and len(set(ld)) == 1:
+                winner = ld[0]
+
+        if not winner:
+            # Check right_diagonal
+            rd = self._ttt.right_diagonal
+            if rd[0] and len(set(rd)) == 1:
+                winner = rd[0]
+
+        if winner:
+            return Player.USER if winner == self._symbol[Player.USER] else Player.COMPUTER
+        else:
+            return None
 
 
 def test_rig():
