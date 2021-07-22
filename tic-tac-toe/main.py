@@ -2,7 +2,7 @@
 import random
 from itertools import repeat
 from math import sqrt
-from typing import Union
+from typing import Union, Generator
 from constants import *
 
 
@@ -12,7 +12,7 @@ class TicTacToe:
         assert (rows := sqrt(blocks)) == int(rows), \
             "ValueError: The number of blocks in TicTacToe must be a perfect square"
         self._size = blocks
-        self._rows = self._cols = int(rows)
+        self._nrows = self._ncols = int(rows)
         self._board = [''] * self._size
 
     def show_board(self):
@@ -29,32 +29,32 @@ class TicTacToe:
 
         """
         block_width = 7
-        top_line = ''.join(list(repeat(' ' * block_width + '|', self._cols - 1))) + ' ' * block_width
-        bottom_line = ''.join(list(repeat('_' * block_width + '|', self._cols - 1))) + '_' * block_width
-        for i in range(self._rows):
+        top_line = ''.join(list(repeat(' ' * block_width + '|', self._ncols - 1))) + ' ' * block_width
+        bottom_line = ''.join(list(repeat('_' * block_width + '|', self._ncols - 1))) + '_' * block_width
+        for i in range(self._nrows):
             print(top_line)
-            for j in range(self._cols):
-                print(f"{self._board[i * self._cols + j]:^{block_width}}", end='')
-                print("|" if j != self._cols - 1 else '', end='')
+            for j in range(self._ncols):
+                print(f"{self._board[i * self._ncols + j]:^{block_width}}", end='')
+                print("|" if j != self._ncols - 1 else '', end='')
             print()
-            print(top_line if i == self._rows - 1 else bottom_line)
+            print(top_line if i == self._nrows - 1 else bottom_line)
 
         return ''
 
     def _validate_row_col(self, row: Union[int, slice], col: Union[int, slice]):
         if isinstance(row, int):
-            assert row < self._rows, f"ValueError: Invalid row number '{row}' for board size '{self._size}'"
+            assert row < self._nrows, f"ValueError: Invalid row number '{row}' for board size '{self._size}'"
 
         if isinstance(col, int):
-            assert col < self._cols, f"ValueError: Invalid col number '{col}' for board size '{self._size}'"
+            assert col < self._ncols, f"ValueError: Invalid col number '{col}' for board size '{self._size}'"
 
-    def _get_row(self, row: int):
+    def _get_row(self, row: int) -> list[str]:
         self._validate_row_col(row, 0)
-        return [self._board[i] for i in range(row * self._cols, (row + 1) * self._cols)]
+        return [self._board[i] for i in range(row * self._ncols, (row + 1) * self._ncols)]
 
-    def _get_col(self, col: int):
+    def _get_col(self, col: int) -> list[str]:
         self._validate_row_col(0, col)
-        return [self._board[j] for j in range(col, self._rows * self._cols, self._rows)]
+        return [self._board[j] for j in range(col, self._nrows * self._ncols, self._nrows)]
 
     def __getitem__(self, key: tuple[Union[int, slice], Union[int, slice]]):
         row, col = key
@@ -75,7 +75,7 @@ class TicTacToe:
             return self._get_row(row)
 
         else:
-            return self._board[row * self._cols + col]
+            return self._board[row * self._ncols + col]
 
     def __setitem__(self, key: int, val):
         assert key <= self._size, f"Invalid cell number '{key}', valid range: (1 - {self._size})"
@@ -85,13 +85,58 @@ class TicTacToe:
 
         self._board[key] = val
 
-    @property
-    def left_diagonal(self):
-        return [self._board[i] for i in range(0, self._size, self._cols + 1)]
+    def rows(self) -> Generator:
+        for i in range(self._nrows):
+            yield self._get_row(i)
+
+    def cols(self) -> Generator:
+        for i in range(self._ncols):
+            yield self._get_col(i)
+
+    def diagonals(self) -> Generator:
+        yield self.left_diagonal
+        yield self.right_diagonal
+
+    def all_combos(self):
+        yield from self.rows()
+        yield from self.cols()
+        yield from self.diagonals()
 
     @property
-    def right_diagonal(self):
-        return [self._board[i] for i in range(self._cols - 1, self._size, self._cols - 1)][:-1]
+    def corners(self) -> dict[int, str]:
+        corners = [1,
+                   self._ncols,
+                   self._size - self._ncols + 1,
+                   self._size]
+        d = {}
+        for c in corners:
+            d[c] = self._board[c - 1]
+        return d
+
+    @property
+    def mids(self) -> dict[int, str]:
+        mids = [(self._ncols + 1) // 2,
+                (self._nrows // 2) * self._ncols + 1,
+                ((self._nrows // 2) + 1) * self._ncols,
+                self._size - (self._ncols // 2)]
+        d = {}
+        for m in mids:
+            d[m] = self._board[m - 1]
+        return d
+
+    @property
+    def center(self) -> dict[int, str]:
+        key = (self._size + 1) // 2
+        return { key : self._board[key - 1] }
+
+
+    @property
+    def left_diagonal(self) -> list[str]:
+        return [self._board[i] for i in range(0, self._size, self._ncols + 1)]
+
+    @property
+    def right_diagonal(self) -> list[str]:
+        return [self._board[i] for i in range(self._ncols - 1, self._size, self._ncols - 1)][:-1]
 
     @property
     def size(self):
@@ -99,15 +144,19 @@ class TicTacToe:
 
     @property
     def nrows(self):
-        return self._rows
+        return self._nrows
 
     @property
     def ncols(self):
-        return self._cols
+        return self._ncols
 
     def __str__(self):
         return self.show_board()
 
+
+# TODO:
+#  - Add smart position selection for Computer and introduce Hard level
+#  - Add a medium level which choses the position by randomly selecting Easy or Hard Algo.
 
 class GamePlay:
 
@@ -117,6 +166,7 @@ class GamePlay:
         self._current_player = random.choice([
             Player.COMPUTER, Player.USER
         ])
+        self._game_logic = GameLogic(self._ttt)
 
     @property
     def available_choices(self):
@@ -209,6 +259,23 @@ class GamePlay:
             return None
 
 
+class GameLogic:
+    def __init__(self, ttt: TicTacToe):
+        self._ttt = ttt
+
+
+class GameLogicEasyLevel(GameLogic):
+    """
+    Play Defensive, i.e.
+        - If possible, go for Win
+        - ElIf possible, avoid defeat
+        - Else, choose randomly when there are multiple options
+
+    """
+    def strategy(self):
+        pass
+
+
 def test_rig():
     game = TicTacToe()
     print(game)
@@ -233,13 +300,25 @@ def test_rig():
     # game[1:, :] = ['X', '0', 'X']
     print(f"{game.left_diagonal = }")
     print(f"{game.right_diagonal = }")
+    print(f"{game.rows() = }")
+    print(f"{list(game.rows()) = }")
+    print(f"{game.cols() = }")
+    print(f"{list(game.cols()) = }")
+    print(f"{game.diagonals() = }")
+    print(f"{list(game.diagonals()) = }")
+    print(f"{game.all_combos() = }")
+    print(f"{list(game.all_combos()) = }")
+    print(f"{game.corners = }")
+    print(f"{game.mids = }")
+    print(f"{game.center = }")
+
     repr(game)
 
 
 def main():
     test_rig()
-    g = GamePlay()
-    g.run_game()
+    # g = GamePlay()
+    # g.run_game()
 
 
 if __name__ == '__main__':
