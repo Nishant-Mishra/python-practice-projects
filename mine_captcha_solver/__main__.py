@@ -5,7 +5,7 @@ import reprlib
 from typing import Sequence, Union
 
 MAX_NEIGHBOURS = 8
-MINE = 'X'
+MINE = '*'
 SAFE = ' '
 
 
@@ -72,10 +72,13 @@ class Grid:
 
         return ''.join(to_print)
 
+    def __setitem__(self, key, value):
+        self._grid[key[0]][key[1]] = value
+
 
 # A num > 0, denotes number of mines surrounding it...
 # A '0' denotes, unknown square...
-# An 'X' denotes a Mine...
+# An '*' denotes a Mine...
 # A ' ' denotes No Mine...
 grid = Grid([
     [2, 0, 1, 0],
@@ -88,6 +91,15 @@ grid = Grid([
 class mine_map:
     def __init__(self, mapp: Grid):
         self._map = mapp
+
+    def __setitem__(self, key, value):
+        self._map[key] = value
+
+    def __getitem__(self, key):
+        return self._map[key]
+
+    def __str__(self):
+        return str(self._map)
 
     def neighbours(self, pos: Position) -> list[Position]:
         neighb = []
@@ -132,10 +144,25 @@ class mine_map:
     def size(self):
         return self._map.size()
 
+    def solver(self):
+        sz = self.size()
+        for i in range(sz[0]):
+            for j in range(sz[1]):
+                if self[i, j] == 0:
+                    if self.is_mine_possible((i, j)):
+                        self[i, j] = MINE
+                        self.solver()
+                        self[i, j] = 0
+                    self[i, j] = SAFE
+                    self.solver()
+                    self[i, j] = 0
+                    return
+
 
 if __name__ == '__main__':
     m = mine_map(grid)
     print(f"{m.is_mine_possible((1, 1))}")
-    print(grid)
+    print(m)
+    m.solver()
+    print(m)
 
-    
